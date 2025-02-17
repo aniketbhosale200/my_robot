@@ -5,8 +5,8 @@
 
     <xacro:include filename="common_properties.xacro" />
     <xacro:include filename="mobile_base.xacro" />
-    <xacro:include filename="my_robot_control.xacro" />
-    <xacro:include filename="my_robot_gazebo.xacro" />
+    <xacro:include filename="mobile_base_gazebo.xacro" />
+    <xacro:include filename="camera.xacro" />
 
 
 
