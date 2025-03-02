@@ -35,51 +35,43 @@ def generate_launch_description():
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
-        parameters=[{"robot_description": robot_description}]
+        parameters=[{"robot_description": robot_description,
+                             "use_sim_time": True  
+                    }]
     )
 
-    # Set Gazebo resource path
-    gazebo_resource_path = SetEnvironmentVariable(
-        name="GZ_SIM_RESOURCE_PATH",
-        value=[str(Path(my_robot_dir).parent.resolve())]
+    joint_state_publisher_node = Node(
+        package="joint_state_publisher",
+        executable="joint_state_publisher",
+        name="joint_state_publisher",
+        output="screen"
     )
 
-    # Include Gazebo simulation launch file
+    # Set Gazebo model path (adjust as needed to locate your models)
+    gazebo_model_path = SetEnvironmentVariable(
+        name="GAZEBO_MODEL_PATH",
+        value=[os.path.join(my_robot_dir, "models")]
+    )
+
+    # Form the path to the Gazebo Classic launch file from gazebo_ros package
+    gazebo_launch_path = os.path.join(
+        get_package_share_directory("gazebo_ros"),
+        "launch",
+        "gazebo.launch.py"
+    )
+
+    # Include Gazebo Classic simulation launch file
     gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            os.path.join(get_package_share_directory("ros_gz_sim"), "launch"), "/gz_sim.launch.py"
-        ]),
-        launch_arguments=[("gz_args", [" -v 4", " -r ", "empty.sdf"])]
+        PythonLaunchDescriptionSource(gazebo_launch_path),
+        launch_arguments={"verbose": "true"}.items()
     )
 
-    # Spawn the robot in Gazebo
-    gz_spawn_entity = Node(
-        package="ros_gz_sim",
-        executable="create",
+    # Spawn the robot in Gazebo Classic using spawn_entity.py
+    spawn_entity = Node(
+        package="gazebo_ros",
+        executable="spawn_entity.py",
         output="screen",
-        arguments=["-topic", "robot_description", "-name", "test_robot"]
-    )
-
-    # ROS-Gazebo Bridge for Communication
-    bridge = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=[
-            '/cmd_vel@geometry_msgs/msg/Twist@gz.msgs.Twist',  # Bridge for cmd_vel
-            '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',    # Bridge for odometry
-            '/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',  # Camera image bridge
-            '/camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo'  # Camera info bridge
-        ],
-        output='screen'
-    )
-
-    # Teleop Twist Keyboard for cmd_vel input
-    teleop_twist_keyboard_node = Node(
-        package="teleop_twist_keyboard",
-        executable="teleop_twist_keyboard",
-        output="screen",
-        name="teleop_twist_keyboard",
-        remappings=[("/cmd_vel", "/cmd_vel")]
+        arguments=["-topic", "/robot_description", "-entity", "my_robot"]
     )
 
     # Launch RViz
@@ -90,15 +82,13 @@ def generate_launch_description():
         arguments=["-d", LaunchConfiguration("rviz_config")]
     )
 
-    # Return launch description
     return LaunchDescription([
         model_arg,
         rviz_config_arg,
         robot_state_publisher_node,
-        gazebo_resource_path,
+        joint_state_publisher_node,
+        gazebo_model_path,
         gazebo,
-        gz_spawn_entity,
-        bridge,
-        teleop_twist_keyboard_node,
-        rviz_node  # Added RViz node
+        spawn_entity,
+        rviz_node
     ])
